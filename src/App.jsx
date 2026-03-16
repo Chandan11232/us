@@ -160,7 +160,11 @@ export default function App() {
           style={styles.overlay}
         >
           <h1 style={styles.destinyText}>SAUMYA ❤️ CHANDAN</h1>
-          <img src="/love.gif" style={styles.meetingGif} alt="Love" />
+          <img
+            src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXAxeXBoZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTxf0ZebL6S0G4/giphy.gif"
+            style={styles.meetingGif}
+            alt="Love"
+          />
         </motion.div>
       )}
     </div>
