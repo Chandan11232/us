@@ -29,34 +29,34 @@ const CROWD_EMOJIS = [
 
 export default function App() {
   const [met, setMet] = useState(false);
-  const containerRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false); // Track if user is actually holding Saumya
 
-  // Saumya & Chandan Positions
-  const saumyaX = useMotionValue(150);
+  // Saumya's Position
+  const saumyaX = useMotionValue(100);
   const saumyaY = useMotionValue(200);
-  const chandanX = useSpring(window.innerWidth - 200, {
-    stiffness: 120,
-    damping: 20,
+
+  // Chandan's Position (Stiffer spring for better "hold" feel)
+  const chandanX = useSpring(window.innerWidth - 250, {
+    stiffness: 150,
+    damping: 30,
   });
-  const chandanY = useSpring(window.innerHeight - 200, {
-    stiffness: 120,
-    damping: 20,
+  const chandanY = useSpring(window.innerHeight - 250, {
+    stiffness: 150,
+    damping: 30,
   });
 
-  // Dynamic Crowd Setup
   const crowd = useMemo(
     () =>
-      Array.from({ length: 50 }).map((_, i) => ({
+      Array.from({ length: 45 }).map((_, i) => ({
         id: i,
         name: NAMES[i % NAMES.length],
         emoji: CROWD_EMOJIS[i % CROWD_EMOJIS.length],
-        vx: (Math.random() - 0.5) * 1.5,
-        vy: (Math.random() - 0.5) * 1.5,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: (Math.random() - 0.5) * 1.2,
       })),
     [],
   );
 
-  // Physics & Meeting Logic
   useEffect(() => {
     let frameId;
     const runPhysics = () => {
@@ -67,43 +67,44 @@ export default function App() {
 
       const dist = Math.sqrt(Math.pow(sx - cx, 2) + Math.pow(sy - cy, 2));
 
-      if (dist < 350 && !met) {
-        chandanX.set(sx + 110); // Spaced apart as requested
+      // ONLY MOVE CHANDAN IF USER IS DRAGGING SAUMYA
+      if (isDragging && dist < 450 && !met) {
+        chandanX.set(sx + 120); // Maintain that gap you wanted
         chandanY.set(sy);
       }
 
-      if (dist < 120 && !met) {
+      // MEETING TRIGGER
+      if (dist < 130 && isDragging && !met) {
         setMet(true);
+        setIsDragging(false);
         triggerWeddingBliss();
       }
       frameId = requestAnimationFrame(runPhysics);
     };
     frameId = requestAnimationFrame(runPhysics);
     return () => cancelAnimationFrame(frameId);
-  }, [met, chandanX, chandanY, saumyaX, saumyaY]);
+  }, [isDragging, met, chandanX, chandanY, saumyaX, saumyaY]);
 
   const triggerWeddingBliss = () => {
-    const end = Date.now() + 7 * 1000;
-    const heart = confetti.shapeFromText({ text: "❤️", scalar: 3 });
-    const ring = confetti.shapeFromText({ text: "💍", scalar: 3 });
+    const end = Date.now() + 6 * 1000;
     (function frame() {
       confetti({
         particleCount: 10,
         spread: 100,
         origin: { y: 0.6 },
-        shapes: [heart, ring],
+        shapes: [confetti.shapeFromText({ text: "❤️" })],
       });
       if (Date.now() < end) requestAnimationFrame(frame);
     })();
   };
 
   return (
-    <div ref={containerRef} style={styles.container}>
+    <div style={styles.container}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Bungee+Spice&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bungee+Spice&display=swap');
       `}</style>
 
-      {/* MOVING CROWD LAYER */}
+      {/* MOVING CROWD */}
       {!met &&
         crowd.map((p) => (
           <FloatingName
@@ -114,7 +115,7 @@ export default function App() {
           />
         ))}
 
-      {/* CHANDAN */}
+      {/* CHANDAN (The Groom) */}
       <motion.div
         style={{ ...styles.vip, x: chandanX, y: chandanY, zIndex: 5 }}
       >
@@ -124,17 +125,19 @@ export default function App() {
             ...styles.vipLabel,
             color: "#00d2ff",
             fontFamily: met ? '"Bungee Spice", cursive' : "sans-serif",
-            marginTop: met ? "50px" : "5px",
+            marginTop: met ? "60px" : "5px",
           }}
         >
           {met ? "Chandan (Groom)" : "Chandan"}
         </p>
       </motion.div>
 
-      {/* SAUMYA */}
+      {/* SAUMYA (The Bride - Draggable) */}
       <motion.div
         drag
         dragMomentum={false}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={() => setIsDragging(false)}
         style={{
           ...styles.vip,
           x: saumyaX,
@@ -149,32 +152,31 @@ export default function App() {
             ...styles.vipLabel,
             color: "#ff69b4",
             fontFamily: met ? '"Bungee Spice", cursive' : "sans-serif",
-            marginTop: met ? "50px" : "5px",
+            marginTop: met ? "60px" : "5px",
           }}
         >
           {met ? "Saumya (Bride)" : "Saumya"}
         </p>
       </motion.div>
 
-      {/* Success UI Overlay */}
+      {/* SUCCESS OVERLAY */}
       {met && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           style={styles.overlay}
         >
           <h1 style={styles.destinyText}>NOW, YOU'RE MARRIED! 💍</h1>
           <img
-            src="/soulmates.gif"
+            src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZjNqbHRlZ2c2NGs0amgybnFxN2UzZjZmMjhvZnp4M2F3ZWw0MHdzNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ytu2GUYbvhz7zShGwS/giphy.gif"
             style={styles.meetingGif}
-            alt="Wedding Celebration"
             onError={(e) =>
               (e.target.src =
-                "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXAxeXBoZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTxf0ZebL6S0G4/giphy.gif")
+                "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZjNqbHRlZ2c2NGs0amgybnFxN2UzZjZmMjhvZnp4M2F3ZWw0MHdzNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ytu2GUYbvhz7zShGwS/giphy.gif")
             }
           />
           <button onClick={() => window.location.reload()} style={styles.btn}>
-            Celebrate Again
+            Restart
           </button>
         </motion.div>
       )}
@@ -191,19 +193,17 @@ function FloatingName({ person, saumyaX, saumyaY }) {
     let vx = person.vx;
     let vy = person.vy;
     const move = () => {
-      let curX = x.get();
-      let curY = y.get();
-      curX += vx;
-      curY += vy;
+      let curX = x.get() + vx;
+      let curY = y.get() + vy;
       if (curX < 0 || curX > window.innerWidth) vx *= -1;
       if (curY < 0 || curY > window.innerHeight) vy *= -1;
 
-      // PUSH ASIDE
+      // REPEL: Crowd pushes away from Saumya
       const dx = curX - saumyaX.get();
       const dy = curY - saumyaY.get();
-      if (Math.sqrt(dx * dx + dy * dy) < 180) {
-        curX += dx * 0.12;
-        curY += dy * 0.12;
+      if (Math.sqrt(dx * dx + dy * dy) < 200) {
+        curX += dx * 0.08;
+        curY += dy * 0.08;
       }
       x.set(curX);
       y.set(curY);
@@ -214,26 +214,9 @@ function FloatingName({ person, saumyaX, saumyaY }) {
   }, [saumyaX, saumyaY, x, y, person.vx, person.vy]);
 
   return (
-    <motion.div
-      style={{
-        position: "absolute",
-        x,
-        y,
-        opacity: 0.4,
-        pointerEvents: "none",
-        textAlign: "center",
-      }}
-    >
-      <span style={{ fontSize: "2.5rem" }}>{person.emoji}</span>{" "}
-      {/* Larger Crowd Emojis */}
-      <p
-        style={{
-          color: "white",
-          fontSize: "14px",
-          margin: 0,
-          fontWeight: "bold",
-        }}
-      >
+    <motion.div style={{ position: "absolute", x, y, opacity: 0.4 }}>
+      <span style={{ fontSize: "2.5rem" }}>{person.emoji}</span>
+      <p style={{ color: "white", fontSize: "14px", margin: 0 }}>
         {person.name}
       </p>
     </motion.div>
@@ -254,13 +237,8 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    filter: "drop-shadow(0 0 20px rgba(255,255,255,0.4))",
   },
-  vipLabel: {
-    fontWeight: "bold",
-    fontSize: "1.4rem",
-    transition: "all 0.5s ease",
-  },
+  vipLabel: { fontWeight: "bold", fontSize: "1.4rem" },
   overlay: {
     position: "absolute",
     inset: 0,
@@ -276,23 +254,18 @@ const styles = {
     fontSize: "3rem",
     fontFamily: '"Bungee Spice"',
     textAlign: "center",
-    marginBottom: "25px",
   },
   meetingGif: {
     width: "350px",
     borderRadius: "40px",
     border: "8px solid #ff69b4",
-    boxShadow: "0 0 50px rgba(255, 105, 180, 0.6)",
   },
   btn: {
     marginTop: "25px",
-    padding: "12px 30px",
-    borderRadius: "25px",
+    padding: "10px 20px",
+    borderRadius: "20px",
     background: "#ff69b4",
     color: "white",
     border: "none",
-    fontWeight: "bold",
-    fontSize: "1rem",
-    cursor: "pointer",
   },
 };
