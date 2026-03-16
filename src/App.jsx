@@ -1,8 +1,19 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import confetti from "canvas-confetti";
 
-// Fun emoji list for the "wrong" names
+const NAMES = [
+  "Aarav",
+  "Liam",
+  "Sophia",
+  "Priya",
+  "Vikram",
+  "Zoe",
+  "Sneha",
+  "Hans",
+  "Yuki",
+  "Chloe",
+];
 const CROWD_EMOJIS = [
   "👻",
   "🤡",
@@ -15,50 +26,40 @@ const CROWD_EMOJIS = [
   "🐹",
   "🐼",
 ];
-const NAMES = [
-  "Aarav",
-  "Liam",
-  "Sophia",
-  "Priya",
-  "Vikram",
-  "Zoe",
-  "Samiksha",
-  "Diya",
-  "Rohini",
-  "Hans",
-  "Yuki",
-  "Chloe",
-];
-
-// Create 80 random people for the background
-const others = Array.from({ length: 80 }).map((_, i) => ({
-  id: i,
-  name: NAMES[i % NAMES.length],
-  emoji: CROWD_EMOJIS[i % CROWD_EMOJIS.length],
-  x: Math.random() * 90, // Percentage based for responsiveness
-  y: Math.random() * 90,
-}));
 
 export default function App() {
   const [met, setMet] = useState(false);
   const containerRef = useRef(null);
 
-  // Saumya's position (Draggable)
-  const saumyaX = useMotionValue(100);
-  const saumyaY = useMotionValue(100);
-
-  // Chandan's position (Uses a Spring for smooth "Magnet" effect)
-  const chandanX = useSpring(window.innerWidth - 150, {
-    stiffness: 50,
-    damping: 15,
+  // Saumya & Chandan Positions
+  const saumyaX = useMotionValue(150);
+  const saumyaY = useMotionValue(200);
+  const chandanX = useSpring(window.innerWidth - 200, {
+    stiffness: 120,
+    damping: 20,
   });
-  const chandanY = useSpring(window.innerHeight - 150, {
-    stiffness: 50,
-    damping: 15,
+  const chandanY = useSpring(window.innerHeight - 200, {
+    stiffness: 120,
+    damping: 20,
   });
 
+  // Dynamic Crowd Setup
+  const crowd = useMemo(
+    () =>
+      Array.from({ length: 50 }).map((_, i) => ({
+        id: i,
+        name: NAMES[i % NAMES.length],
+        emoji: CROWD_EMOJIS[i % CROWD_EMOJIS.length],
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+      })),
+    [],
+  );
+
+  // Physics & Meeting Logic
   useEffect(() => {
-    const checkDistance = () => {
+    let frameId;
+    const runPhysics = () => {
       const sx = saumyaX.get();
       const sy = saumyaY.get();
       const cx = chandanX.get();
@@ -66,77 +67,71 @@ export default function App() {
 
       const dist = Math.sqrt(Math.pow(sx - cx, 2) + Math.pow(sy - cy, 2));
 
-      // 1. Magnetic Pull: If Saumya gets close, Chandan is sucked in
-      if (dist < 400 && !met) {
-        chandanX.set(sx + 40); // Snap slightly to the side
+      if (dist < 350 && !met) {
+        chandanX.set(sx + 110); // Spaced apart as requested
         chandanY.set(sy);
       }
 
-      // 2. The Big Meet
-      if (dist < 60 && !met) {
+      if (dist < 120 && !met) {
         setMet(true);
-        triggerHugeHeartBlast();
+        triggerWeddingBliss();
       }
+      frameId = requestAnimationFrame(runPhysics);
     };
+    frameId = requestAnimationFrame(runPhysics);
+    return () => cancelAnimationFrame(frameId);
+  }, [met, chandanX, chandanY, saumyaX, saumyaY]);
 
-    const unsubscribe = saumyaX.on("change", checkDistance);
-    return () => unsubscribe();
-  }, [met]);
-
-  const triggerHugeHeartBlast = () => {
-    const end = Date.now() + 5 * 1000;
+  const triggerWeddingBliss = () => {
+    const end = Date.now() + 7 * 1000;
     const heart = confetti.shapeFromText({ text: "❤️", scalar: 3 });
-
+    const ring = confetti.shapeFromText({ text: "💍", scalar: 3 });
     (function frame() {
       confetti({
-        particleCount: 15,
-        angle: 60,
+        particleCount: 10,
         spread: 100,
-        origin: { x: 0, y: 0.7 },
-        shapes: [heart],
-        colors: ["#ff69b4", "#ff0000"],
+        origin: { y: 0.6 },
+        shapes: [heart, ring],
       });
-      confetti({
-        particleCount: 15,
-        angle: 120,
-        spread: 100,
-        origin: { x: 1, y: 0.7 },
-        shapes: [heart],
-        colors: ["#ff69b4", "#ff0000"],
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
+      if (Date.now() < end) requestAnimationFrame(frame);
     })();
   };
 
   return (
     <div ref={containerRef} style={styles.container}>
-      {/* Background Crowd */}
-      {others.map((person) => (
-        <div
-          key={person.id}
-          style={{
-            ...styles.person,
-            left: `${person.x}%`,
-            top: `${person.y}%`,
-          }}
-        >
-          <span style={{ fontSize: "1.5rem" }}>{person.emoji}</span>
-          <p style={styles.nameLabel}>{person.name}</p>
-        </div>
-      ))}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Bungee+Spice&display=swap');
+      `}</style>
 
-      {/* Chandan (The Boy) */}
+      {/* MOVING CROWD LAYER */}
+      {!met &&
+        crowd.map((p) => (
+          <FloatingName
+            key={p.id}
+            person={p}
+            saumyaX={saumyaX}
+            saumyaY={saumyaY}
+          />
+        ))}
+
+      {/* CHANDAN */}
       <motion.div
         style={{ ...styles.vip, x: chandanX, y: chandanY, zIndex: 5 }}
       >
-        <span style={{ fontSize: "4rem" }}>👦</span>
-        <p style={styles.vipLabel}>Chandan</p>
+        <span style={{ fontSize: "4.5rem" }}>👦</span>
+        <p
+          style={{
+            ...styles.vipLabel,
+            color: "#00d2ff",
+            fontFamily: met ? '"Bungee Spice", cursive' : "sans-serif",
+            marginTop: met ? "50px" : "5px",
+          }}
+        >
+          {met ? "Chandan (Groom)" : "Chandan"}
+        </p>
       </motion.div>
 
-      {/* Saumya (The Girl - Draggable) */}
+      {/* SAUMYA */}
       <motion.div
         drag
         dragMomentum={false}
@@ -148,26 +143,100 @@ export default function App() {
           cursor: "grab",
         }}
       >
-        <span style={{ fontSize: "4rem" }}>👧</span>
-        <p style={{ ...styles.vipLabel, color: "#ff69b4" }}>Saumya</p>
+        <span style={{ fontSize: "4.5rem" }}>👧</span>
+        <p
+          style={{
+            ...styles.vipLabel,
+            color: "#ff69b4",
+            fontFamily: met ? '"Bungee Spice", cursive' : "sans-serif",
+            marginTop: met ? "50px" : "5px",
+          }}
+        >
+          {met ? "Saumya (Bride)" : "Saumya"}
+        </p>
       </motion.div>
 
-      {/* Success UI */}
+      {/* Success UI Overlay */}
       {met && (
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
           style={styles.overlay}
         >
-          <h1 style={styles.destinyText}>SAUMYA ❤️ CHANDAN</h1>
+          <h1 style={styles.destinyText}>NOW, YOU'RE MARRIED! 💍</h1>
           <img
-            src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXAxeXBoZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTxf0ZebL6S0G4/giphy.gif"
+            src="/soulmates.gif"
             style={styles.meetingGif}
-            alt="Love"
+            alt="Wedding Celebration"
+            onError={(e) =>
+              (e.target.src =
+                "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXAxeXBoZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZzR0eXBtZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTxf0ZebL6S0G4/giphy.gif")
+            }
           />
+          <button onClick={() => window.location.reload()} style={styles.btn}>
+            Celebrate Again
+          </button>
         </motion.div>
       )}
     </div>
+  );
+}
+
+function FloatingName({ person, saumyaX, saumyaY }) {
+  const x = useMotionValue(Math.random() * window.innerWidth);
+  const y = useMotionValue(Math.random() * window.innerHeight);
+
+  useEffect(() => {
+    let frameId;
+    let vx = person.vx;
+    let vy = person.vy;
+    const move = () => {
+      let curX = x.get();
+      let curY = y.get();
+      curX += vx;
+      curY += vy;
+      if (curX < 0 || curX > window.innerWidth) vx *= -1;
+      if (curY < 0 || curY > window.innerHeight) vy *= -1;
+
+      // PUSH ASIDE
+      const dx = curX - saumyaX.get();
+      const dy = curY - saumyaY.get();
+      if (Math.sqrt(dx * dx + dy * dy) < 180) {
+        curX += dx * 0.12;
+        curY += dy * 0.12;
+      }
+      x.set(curX);
+      y.set(curY);
+      frameId = requestAnimationFrame(move);
+    };
+    frameId = requestAnimationFrame(move);
+    return () => cancelAnimationFrame(frameId);
+  }, [saumyaX, saumyaY, x, y, person.vx, person.vy]);
+
+  return (
+    <motion.div
+      style={{
+        position: "absolute",
+        x,
+        y,
+        opacity: 0.4,
+        pointerEvents: "none",
+        textAlign: "center",
+      }}
+    >
+      <span style={{ fontSize: "2.5rem" }}>{person.emoji}</span>{" "}
+      {/* Larger Crowd Emojis */}
+      <p
+        style={{
+          color: "white",
+          fontSize: "14px",
+          margin: 0,
+          fontWeight: "bold",
+        }}
+      >
+        {person.name}
+      </p>
+    </motion.div>
   );
 }
 
@@ -175,53 +244,55 @@ const styles = {
   container: {
     width: "100vw",
     height: "100vh",
-    background: "#0f0f0f",
+    background: "#0a0a0a",
     overflow: "hidden",
     position: "relative",
+    touchAction: "none",
   },
-  person: {
-    position: "absolute",
-    opacity: 0.3,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  nameLabel: { color: "white", fontSize: "10px", margin: 0 },
   vip: {
     position: "absolute",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    filter: "drop-shadow(0 0 20px rgba(255,255,255,0.4))",
   },
   vipLabel: {
-    color: "#00d2ff",
     fontWeight: "bold",
-    fontSize: "1.2rem",
-    margin: 0,
-    textShadow: "0 0 10px rgba(255,255,255,0.5)",
+    fontSize: "1.4rem",
+    transition: "all 0.5s ease",
   },
   overlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
+    inset: 0,
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    background: "rgba(0,0,0,0.7)",
+    background: "rgba(0,0,0,0.9)",
     zIndex: 100,
   },
   destinyText: {
-    color: "#fff",
+    color: "white",
     fontSize: "3rem",
-    fontFamily: "cursive",
-    marginBottom: "20px",
+    fontFamily: '"Bungee Spice"',
+    textAlign: "center",
+    marginBottom: "25px",
   },
   meetingGif: {
-    width: "300px",
-    borderRadius: "20px",
-    border: "5px solid #ff69b4",
+    width: "350px",
+    borderRadius: "40px",
+    border: "8px solid #ff69b4",
+    boxShadow: "0 0 50px rgba(255, 105, 180, 0.6)",
+  },
+  btn: {
+    marginTop: "25px",
+    padding: "12px 30px",
+    borderRadius: "25px",
+    background: "#ff69b4",
+    color: "white",
+    border: "none",
+    fontWeight: "bold",
+    fontSize: "1rem",
+    cursor: "pointer",
   },
 };
